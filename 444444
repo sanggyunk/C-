@@ -1,0 +1,129 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// 버튼 스위치 배열
+const int SWITCHES[] = {2, 3, 5, 7};
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const int BUZZER_PIN = 10;
+
+const int SOUND_FREQ[] = {261, 329, 392};
+
+bool buttonState[4] = {false, false, false, false};
+
+volatile bool interruptFlag = false;
+
+const int INTERRUPT_PIN = 7;
+
+char lcdText[9] = " IES 2023";
+
+bool textMoving = false;
+
+void setup() {
+  for (int i = 0; i < 4; i++) {
+    pinMode(SWITCHES[i], INPUT_PULLUP);
+  }
+  
+  // 인터럽트 핀 설정
+  pinMode(INTERRUPT_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), stopAll, FALLING);
+  
+  // LCD 초기화
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("Hello!");
+  lcd.setCursor(0, 1);
+  lcd.print("The world");
+}
+
+void loop() {
+  // SW4가 눌렸을 때 처리
+  if (interruptFlag) {
+    lcd.clear();
+    lcd.print("GoodBye!");
+    playMelody("DO MI SOL", 200);
+    playMelody("SOL MI DO", 200);
+    while (true) {} // 종료하지 않고 계속 대기
+  }
+  
+  // 버튼 스위치 입력 확인
+  for (int i = 0; i < 4; i++) {
+    bool currentState = digitalRead(SWITCHES[i]);
+    if (currentState != buttonState[i]) { // 버튼 상태가 변경되었을 때
+      buttonState[i] = currentState;
+      if (currentState == LOW) {
+        handleSwitch(i + 1); // 스위치 번호는 1부터 시작
+      }
+    }
+  }
+  
+  // LCD 문자열 이동 처리
+  if (textMoving) {
+    moveText();
+  }
+}
+
+// 문자 LCD에 출력하는 함수
+void displayLCD(const char* line1, const char* line2) {
+  lcd.clear();
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
+}
+
+// 피에조를 울리는 함수
+void playTone(int frequency, int duration) {
+  tone(BUZZER_PIN, frequency, duration);
+  delay(duration);
+  noTone(BUZZER_PIN);
+}
+
+// 멜로디를 재생하는 함수
+void playMelody(const char* melody, int duration) {
+  int len = strlen(melody);
+  for (int i = 0; i < len; i++) {
+    if (melody[i] == ' ') {
+      delay(duration);
+    } else {
+      int index = melody[i] - 'A'; // 'A'의 ASCII 코드는 65
+      int frequency = SOUND_FREQ[index % 3];
+      playTone(frequency, duration);
+    }
+    delay(duration / 2); // 음 사이에 일시적인 정지
+  }
+}
+
+// SW1~SW3 처리 함수
+void handleSwitch(int switchNum) {
+  // 다른 스위치가 이미 눌려져 있는지 확인
+  for (int i = 0; i < 4; i++) {
+    if (i != (switchNum - 1) && buttonState[i] == LOW) {
+      return; // 다른 스위치가 눌려져 있으면 동작하지 않음
+    }
+  }
+  
+  // 스위치에 따라 처리
+  switch (switchNum) {
+    case 1:
+      displayLCD("Switch1 ON", "-Sound : DO");
+      playTone(SOUND_FREQ[261], 0); // 계속 DO 소리를 울림
+      break;
+    case 2:
+      displayLCD("Switch2 ON", "-Sound : MI");
+      playTone(SOUND_FREQ[329], 0); // 계속 MI 소리를 울림
+      break;
+    case 3:
+      displayLCD("Switch3 ON", "-Sound : SOL");
+      playTone(SOUND_FREQ[392], 0); // 계속 SOL 소리를 울림
+      break;
+    default:
+      break;
+  }
+  
+  // RESET 스위치 처리
+  if (switchNum == 4) {
+    textMoving = true;
+  }
+}
+
