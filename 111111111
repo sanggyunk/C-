@@ -1,0 +1,115 @@
+
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+
+
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+
+int TRIGGER_PIN = 7;
+int ECHO_PIN = 8;
+
+int LED_BLUE_PIN = 9;
+int LED_GREEN_PIN = 10;
+int LED_RED_PIN = 11;
+
+int SERVO_PIN = 6;
+int PIEZO_PIN = 12;
+Servo flagServo;
+
+
+void setup() {
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(LED_RED_PIN, OUTPUT);
+  pinMode(LED_GREEN_PIN, OUTPUT);
+  pinMode(LED_BLUE_PIN, OUTPUT);
+  flagServo.attach(SERVO_PIN);
+  pinMode(PIEZO_PIN, OUTPUT);
+  
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("hello! IES 2022");
+  lcd.setCursor(0, 1);
+  lcd.print("     IES S022    ");
+  lcd.clear();
+  Serial.begin(9600);
+}
+
+
+void loop() {
+  long duration, distance;
+  // 초음파 센서로 거리 측정
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+  
+  duration = pulseIn(ECHO_PIN, HIGH);
+
+  // 거리 계산 (cm 단위)
+  distance = duration * 0.034 / 2;
+  lcd.setCursor(0, 0);
+  lcd.print("Distance: " + String(distance) + "cm   ");
+  lcd.setCursor(0, 1);
+  
+  
+  
+  // 거리에 따른 동작 수행
+  if (distance < 10) {
+    // 거리가 10cm 미만일 때
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, LOW); 
+    digitalWrite(LED_BLUE_PIN, LOW);
+    flagServo.write(0);
+    lcd.print("Color:Red   ");
+    playTone(261);
+
+  } else if (distance >= 10 && distance < 20) {
+    // 거리가 10cm 이상 20cm 미만일 때
+    digitalWrite(LED_RED_PIN, LOW);
+    digitalWrite(LED_GREEN_PIN, LOW);
+    digitalWrite(LED_BLUE_PIN, HIGH);
+    flagServo.write(45);
+    lcd.print("Color:Blue  ");
+    playTone(293);
+    
+  } else if (distance >= 20 && distance < 30) {
+    // 거리가 20cm 이상 30cm 미만일 때
+    digitalWrite(LED_RED_PIN, LOW);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    digitalWrite(LED_BLUE_PIN, LOW);
+    flagServo.write(90);
+    lcd.print("Color:Green ");
+    playTone(329);
+  } 
+  else if (distance >= 30 && distance < 40) {
+    // 거리가 30cm 이상 40cm 미만일 때
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    digitalWrite(LED_BLUE_PIN, LOW);
+    flagServo.write(135);
+    lcd.print("Color:Yellow");
+    playTone(349);
+  } 
+  else {
+    // 거리가 40cm 이상일 때
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    digitalWrite(LED_BLUE_PIN, HIGH);
+    flagServo.write(180);
+    lcd.print("Color:White ");
+    playTone(392);
+  }
+  
+   delay(100);
+}
+
+void playTone(int frequency) {
+     tone(PIEZO_PIN, frequency);
+     delay(200);
+     noTone(PIEZO_PIN);
+}
